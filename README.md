@@ -113,8 +113,12 @@ This feature is supposed to represent the number of days with bad physical healt
 
 ```python
 # Replace None with appropriate text
+# Replace None with appropriate text
 """
-None
+Yes, there is an issue. The PHYSHLTH column shows impossible values such as 88 and 99. 
+According to the CDC coding, 88 means 'None' (0 days), 77 means 'Don't know', and 99 means 
+'Refused'. Valid values should only be between 0 and 30 days. These codes need to be cleaned 
+or recoded before we can analyze the data properly.
 """
 ```
 
@@ -127,6 +131,12 @@ Look in the data dictionary, page 17, to understand what is happening with these
 
 ```python
 # Your code here
+# Convert 'None' (88) to 0
+df["PHYSHLTH"] = df["PHYSHLTH"].replace(88, 0)
+
+# Keep only valid number of days (0–30), drop others (77, 99, missing)
+df = df[(df["PHYSHLTH"] >= 0) & (df["PHYSHLTH"] <= 30)]
+
 ```
 
 Run the code below to ensure you have the correct, cleaned dataframe:
@@ -176,7 +186,15 @@ Look in the data dictionary, pages 2-3, to determine which states map onto which
 
 
 ```python
-# Your code here
+# Map state codes to names
+state_map = {
+    9: "Connecticut",
+    34: "New Jersey",
+
+    36: "New York"
+}
+
+df["_STATE"] = df["_STATE"].map(state_map)
 ```
 
 Below, we check the values:
@@ -224,8 +242,11 @@ Looking at the plot above, does the distribution seem to differ by state?
 ```python
 # Replace None with appropriate text
 """
-None
-"""
+Based on visual inspection, the distributions look fairly similar across the three states. 
+Most respondents in all states reported 0 bad health days, with the counts tapering off as 
+the number of days increases. There may be slight differences in the tails (e.g., New Jersey 
+seems to have a bit more respondents with higher bad health days), but overall the patterns 
+are 
 ```
 
 For the statistical test, we will be comparing the *means* of `PHYSHLTH` across states, as a representation of the overall distribution. In other words, when operationalizing the question **does `PHYSHLTH` differ by state?** we want to answer that in terms of the mean `PHYSHLTH`.
@@ -246,8 +267,13 @@ Identify which of the statistical tests you have learned is the most appropriate
 ```python
 # Replace None with appropriate text
 """
-None
+The most appropriate test here is a one-way ANOVA. We are comparing the means of a numeric 
+variable (PHYSHLTH = number of days with poor physical health) across more than two categories 
+of a categorical variable (_STATE = Connecticut, New Jersey, New York). ANOVA is designed to 
+test whether the differences in mean PHYSHLTH across these three states are statistically 
+significant.
 """
+
 ```
 
 Now, identify the null and alternative hypotheses:
@@ -256,7 +282,8 @@ Now, identify the null and alternative hypotheses:
 ```python
 # Replace None with appropriate text
 """
-None
+Null Hypothesis (H0): The mean PHYSHLTH is the same across Connecticut, New Jersey, and New York.  
+Alternative Hypothesis (H1): At least one state has a different mean PHYSHLTH.  
 """
 ```
 
@@ -279,7 +306,9 @@ Interpret the results of this statistical test below. What is the calculated p-v
 ```python
 # Replace None with appropriate text
 """
-None
+Since p-value = 8.8e-09 < 0.05, we reject Null Hypothesis H₀ 
+There is a statistically significant difference in mean 
+physical health days across states.
 """
 ```
 
@@ -302,6 +331,12 @@ In the cell below, modify `df` so that we have dropped all records where the `RE
 
 ```python
 # Your code here
+df = df.loc[df["RENTHOM1"].isin([1, 2])].copy()
+
+
+# Replace numbers with labels
+df["RENTHOM1"] = df["RENTHOM1"].replace({1.0: "Own", 2.0: "Rent"})
+
 ```
 
 
@@ -328,6 +363,28 @@ Now, similar to the previous step, create a plot that shows the distribution of 
 
 ```python
 # Your code here
+
+# Separate PHYSHLTH by ownership
+own = df.loc[df["RENTHOM1"] == "Own", "PHYSHLTH"]
+rent = df.loc[df["RENTHOM1"] == "Rent", "PHYSHLTH"]
+
+# Plot histogram
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.hist(
+    [own, rent],               # Data for both groups
+    bins=range(0, 32),         # Days 0-30
+    density=True,              # Show proportions instead of counts
+    label=["Own", "Rent"],     # Legend
+    alpha=0.7                  # Slight transparency for overlap
+)
+
+# Labels and title
+ax.set_xlabel("PHYSHLTH (Days of Bad Physical Health)")
+ax.set_ylabel("Density")
+ax.set_title("Distribution of PHYSHLTH by Home Ownership Status")
+
+ax.legend(title="Home Ownership")
+plt.show()
 ```
 
 Then run this code to find the averages:
@@ -344,7 +401,15 @@ Now, interpret the plot and averages. Does it seem like there a difference in th
 ```python
 # Replace None with appropriate text
 """
-None
+From the plot and the averages:
+
+Renters have a higher average number of bad physical health days 5.2 compared to owners 3.5.  
+The histogram shows that renters tend to have more days with poor health, while owners are 
+more concentrated at lower PHYSHLTH values.  
+Compared to the distributions by state, the difference between renters and owners is larger.  
+  By state, the mean PHYSHLTH ranged only from 3.7 to 4.4 days,  
+  Whereas by home ownership, the difference is 1.7 days, suggesting home ownership status might
+  have a stronger association with health than state alone.
 """
 ```
 
@@ -353,6 +418,23 @@ Now, choose and execute an appropriate statistical test. Make sure you describe 
 
 ```python
 # Your code here (create additional cells as needed)
+#Comparing PHYSHLTH (numeric) between two groups
+#Own vs Rent
+#the outcome should be Numerical
+#we use a t-test
+#why we a comparind the means of two independent groups
+#for instant if we want to see if the average bad health days differs between homeowners and renters
+# Separate PHYSHLTH for the two groups
+own = df.loc[df["RENTHOM1"] == "Own", "PHYSHLTH"]
+rent = df.loc[df["RENTHOM1"] == "Rent", "PHYSHLTH"]
+
+# Perform independent samples t-test
+t_stat, p_value = stats.ttest_ind(own, rent)
+
+print("t-statistic:", t_stat)
+print("p-value:", p_value)
+
+
 ```
 
 ## 4. Describe the Relationship between Chronic Sickness and Nicotine Use
@@ -370,7 +452,18 @@ If a record matches one or more of the above criteria, `NICOTINE_USE` should be 
 
 ```python
 # Your code here
+# Create NICOTINE_USE column
+df["NICOTINE_USE"] = (
+    (df["SMOKE100"] == 1) |  # Yes to smoked at least 100 cigarettes
+    (df["USENOW3"].isin([1, 2])) |  # Every day or Some days use of smokeless tobacco
+    (df["ECIGARET"] == 1)  # Yes to ever used e-cigarette
+).astype(int)  # Convert boolean True/False to 1/0
 
+# Check the counts
+df["NICOTINE_USE"].value_counts()
+
+# Look at the distribution of values
+df["NICOTINE_USE"].value_counts(normalize=True)
 # Look at the distribution of values
 df["NICOTINE_USE"].value_counts(normalize=True)
 ```
@@ -382,7 +475,7 @@ In the cell below, create a new column of `df` called `CHRONIC`, which is 0 for 
 
 ```python
 # Your code here
-
+df["CHRONIC"] = (df["PHYSHLTH"] >= 15).astype(int)
 # View the distribution of the newly-created column
 df["CHRONIC"].value_counts()
 ```
@@ -425,6 +518,25 @@ Once again, it appears that there is a difference in health outcomes between the
 
 ```python
 # Your code here (create additional cells as needed)
+#chi-squared since chronic and nicotine use are categorical variables 
+# Run chi-squared test
+
+from scipy.stats import chi2_contingency
+chi2, p, dof, expected = chi2_contingency(contingency_table)
+
+print("Chi-squared statistic:", chi2)
+print("p-value:", p)
+print("Degrees of freedom:", dof)
+print("Expected frequencies:\n", expected)
+```
+```Python
+# Your code here (create additional cells as needed)
+"""
+There is a statistically significant association between nicotine use and being chronically sick.
+Nicotine users are more likely to be chronically sick than non-users.
+The difference is not due to chance.
+
+"""
 ```
 
 ## 5. Choose Your Own Question
@@ -437,9 +549,33 @@ Select an independent variable based on looking at the information in the data d
 
 
 ```python
-# Your code here (create additional cells as needed)
-```
+# Categorize PHYSHLTH into Good (0–5 unhealthy days) vs Poor (6+ unhealthy days)
+df["PHYSHLTH_CAT"] = df["PHYSHLTH"].apply(lambda x: 0 if x <= 5 else 1)
 
+# Make a crosstab between SEX and PHYSHLTH
+contingency_table = pd.crosstab(df["SEX"], df["PHYSHLTH_CAT"])
+print(contingency_table)
+
+# Run Chi-Square test
+from scipy.stats import chi2_contingency
+chi2, p, dof, expected = chi2_contingency(contingency_table)
+
+print("Chi-square:", chi2)
+print("Degrees of freedom:", dof)
+print("p-value:", p)
+
+```
+```python
+"""
+Here, p-value ≈ 0.0000000000000098, which is far below 0.05.
+So we reject the null hypothesis.
+There is no association between sex (male/female) and 
+physical health status (good vs poor).
+There is a statistically significant association between 
+sex and physical health status.
+"""
+
+```
 ## Conclusion
 
 Congratulations, another cumulative lab down! In this lab you practiced reading a data dictionary, performing various data transformations with pandas, and executing statistical tests to address business questions.
